@@ -23,12 +23,12 @@ const server = http.createServer(app);
 
 
 app.use(cors({
-    origin: 'http://localhost:3000',  // Allow this origin
-    // origin: 'https://nexier.vercel.app/',  // Allow this origin
+    origin: '*',  // Allow all origins
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
+
 
 app.use(fileUpload({
     useTempFiles: true,
