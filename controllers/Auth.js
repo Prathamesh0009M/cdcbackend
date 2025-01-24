@@ -1,8 +1,8 @@
 const User = require("../module/User");
-const OTP = require("../module/OTP");
+const OTP = require("../module/Otp");
 const otpgenrater = require("otp-generator");
 const Profile = require("../module/Profile")
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require("jsonwebtoken");
 const { uploadImageToCloudinary } = require("../utils/uploadImageToCloudinary");
 const mailsender = require("../utils/mailsender");
