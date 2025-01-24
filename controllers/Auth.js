@@ -1,9 +1,11 @@
 const User = require("../module/User");
 const OTP = require("../module/OTP");
 const otpgenrater = require("otp-generator");
+const Profile = require("../module/Profile")
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
-const Profile = require("../module/Profile");
+const { uploadImageToCloudinary } = require("../utils/uploadImageToCloudinary");
+const mailsender = require("../utils/mailsender");
 require("dotenv").config();
 
 // SendOTP
@@ -25,7 +27,7 @@ exports.sendOTP = async (req, res) => {
         }
 
         // or generate otp 
-        var otp = otpgenrater.generate(6, {
+        var otp = otpgenrater.generate(4, {
             upperCaseAlphabets: false,
             lowerCaseAlphabets: false,
             specialChars: false,
@@ -37,7 +39,7 @@ exports.sendOTP = async (req, res) => {
         var result = await OTP.findOne({ otp: otp });
 
         while (result) {
-            otp = otpgenrater(6, {
+            otp = otpgenrater(4, {
                 upperCaseAlphabets: false,
                 lowerCaseAlphabets: false,
                 specialChars: false,
@@ -94,7 +96,6 @@ exports.signUp = async (req, res) => {
             !password ||
             !confirmPassword ||
             !otp ||
-            !YearAndBranch ||
             !accountType
         ) {
             return res.status(403).json({
@@ -149,9 +150,9 @@ exports.signUp = async (req, res) => {
         const profileDetail = await Profile.create({
             Designation: null,
             dateOfBirth: null,
-            contactNumber: null,
+            contactNumber: contactNumber,
             about: null,
-            linkedinProfile:null,
+            linkedinProfile: null,
         });
 
         // Create the user
@@ -159,7 +160,7 @@ exports.signUp = async (req, res) => {
             firstName,
             lastName,
             email,
-            contactNumber,
+
             password: hashedPassword,
             accountType,
             collegeId,
@@ -170,7 +171,7 @@ exports.signUp = async (req, res) => {
         });
 
         // Add user to a common conversation
-    
+
 
         // const addInCommunity = await ConverSation.findByIdAndUpdate(
         //     "66f840e0880017cf58164dde",
@@ -189,70 +190,60 @@ exports.signUp = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "User registered successfully.",
-            data :user,
+            data: user,
         });
     } catch (error) {
         console.error("Error during sign-up:", error);
         return res.status(500).json({
             success: false,
-            message: "An error occurred during sign-up. Please try again later.",error,
+            message: "An error occurred during sign-up. Please try again later.", error,
         });
     }
 };
 
-
-
-// login
 exports.login = async (req, res) => {
     try {
         // get data from req body 
         const { email, password } = req.body;
 
-
-
         // validation data
         if (!email || !password) {
-            res.status(403).json({
+            return res.status(403).json({
                 success: false,
-                message: "All field are required",
-            })
+                message: "All fields are required",
+            });
         }
 
-        // check existing of user 
-        // const user = await User.findOne({ email });
-        // const user = await User.findOne({ email }).populate('additionaldetail').exec();
-        // const extrainfo= await User.findOne({email}).populate('additionaldetail').exec();
-
+        // check existence of user 
         const user = await User.findOne({ email }).populate('additionaldetail');
-
         if (!user) {
-            res.status(401).json({
+            return res.status(401).json({
                 success: false,
-                message: "User not registered plz sign-up first",
-            })
-        };
+                message: "User not registered. Please sign-up first.",
+            });
+        }
 
-        // generate JWT token ,after password matching
+        // generate JWT token after password matching
         if (await bcrypt.compare(password, user.password)) {
-
             const payload = {
                 email: user.email,
                 id: user._id,
                 accountType: user.accountType,
-            }
+            };
 
-            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "2h", });
+            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
 
             user.token = token;
             user.password = undefined;
 
-            const option =
-            {
-                expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+            const options = {
+                expires: new Date(Date.now() + 1 * 60 * 60 * 1000), // 24 hours
                 httpOnly: true,
-            }
+            };
+
+            console.log(user);
             // create cookie and send response 
-            res.cookie("token", token, option).status(200).json({
+            return res.cookie("token", token, options).status(200).json({
                 success: true,
                 token,
                 user,
@@ -260,17 +251,218 @@ exports.login = async (req, res) => {
             });
 
         } else {
-            res.status(401).json({
+            return res.status(401).json({
                 success: false,
-                message: "Password is incorrect"
-            })
+                message: "Password is incorrect",
+            });
         }
-
     } catch (e) {
         console.log("Login problem ", e);
-        res.status(501).json({
+        return res.status(501).json({
             success: false,
             message: e.message,
+        });
+    }
+};
+
+exports.fetchAllUser = async (req, res) => {
+    try {
+        // Fetch users sorted by creation date in descending order
+        const users = await User.find({}).sort({ createdAt: -1 }).populate("additionaldetail");
+
+        if (!users || users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No User found right now",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: users,
+        });
+
+    } catch (e) {
+        console.error("User fetch problem", e);
+        res.status(500).json({
+            success: false,
+            message: e.message,
+        });
+    }
+};
+exports.changeProfile = async (req, res) => {
+    try {
+        const {
+            dateOfBirth,
+            Designation,
+            about,
+            contactNumber,
+            linkedinProfile,
+            firstName,
+            lastName,
+            YearAndBranch,
+            batch
+        } = req.body;
+
+        // Get the user ID from the authenticated request
+        const userId = req.user.id;
+
+        // Fetch the user and their associated profile data
+        const user = await User.findById(userId).populate('additionaldetail');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        const profileData = await Profile.findById(user.additionaldetail);
+        if (!profileData) {
+            return res.status(404).json({
+                success: false,
+                message: "Profile details not found",
+            });
+        }
+
+        // Update profile details
+        if (dateOfBirth) profileData.dateOfBirth = dateOfBirth;
+        if (Designation) profileData.Designation = Designation;
+        if (about) profileData.about = about;
+        if (contactNumber) profileData.contactNumber = contactNumber;
+        if (linkedinProfile) profileData.linkedinProfile = linkedinProfile;
+
+        // Save the updated profile
+        await profileData.save();
+
+        // Update user details
+        if (firstName) user.firstName = firstName;
+        if (lastName) user.lastName = lastName;
+        if (YearAndBranch) user.YearAndBranch = YearAndBranch;
+        if (batch) user.batch = batch;
+        // Save the updated user
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Profile and user data have been updated successfully",
+            data: user
+        });
+    } catch (error) {
+        console.error("Error updating profile and user:", error);
+        return res.status(500).json({
+            success: false,
+            message: "An error occurred while updating the profile and user data",
+        });
+    }
+};
+
+
+exports.updateDP = async (req, res) => {
+    try {
+
+        const DP = req.files.thumbnailImage;
+        const newpicture = await uploadImageToCloudinary(DP, process.env.FOLDER_NAME);
+        // console.log("current dp is ", newpicture);
+        const imageUrl = newpicture.url;
+
+        const userId = req.user.id;
+        const user = await User.findByIdAndUpdate(userId, { image: imageUrl });
+
+        return res.status(200).json({
+            success: true,
+            message: "Successfully to update user DP ",
+            data: imageUrl,
+        });
+
+    } catch (e) {
+        return res.status(400).json({
+            success: false,
+            message: "Failed to update user_DP ",
+            error: e.message,
         })
     }
 }
+exports.contactus = async (req, res) => {
+    try {
+        const { name, email, message, yearBranch } = req.body;
+        console.log("data received", name, email, message, yearBranch);
+
+        const emailTemplate = `
+        <div style="background-color: #000; color: #fff; padding: 20px; font-family: Arial, sans-serif; line-height: 1.6;">
+            <h2 style="color: #ff4081; text-align: center;">Career Development Center</h2>
+            <p style="font-size: 16px; margin-top: 20px;">Dear Team,</p>
+            <p style="font-size: 14px;">You have received a new message from the Contact Us form:</p>
+            <div style="margin: 20px 0; padding: 15px; border: 1px solid #333; border-radius: 8px; background-color: #121212;">
+                <p><strong>Name:</strong> ${name}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                ${yearBranch ? `<p><strong>Year & Branch:</strong> ${yearBranch}</p>` : ''}
+                <p><strong>Message:</strong> ${message}</p>
+            </div>
+            <p style="font-size: 14px;">Please respond to the sender promptly.</p>
+            <p style="text-align: center; margin-top: 30px;">
+                <em>Empowering careers, bridging dreams, and fostering excellence.</em>
+            </p>
+        </div>
+        `;
+
+        const response = await mailsender(
+            email,
+            "Contact Us Form Submission",
+            emailTemplate
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Form submitted successfully!",
+        });
+    } catch (e) {
+        return res.status(400).json({
+            success: false,
+            message: "Failed to submit the form.",
+            error: e.message,
+        });
+    }
+};
+exports.deleteAccount = async (req, res) => {
+    try {
+        const userId = req.user.id; // Extract the user ID from the request
+        const userData = await User.findById(userId).populate("additionaldetail"); // Populate additionaldetail
+
+        if (!userData) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        const profileId = userData.additionaldetail?._id;
+
+        // Ensure both user and profile exist
+        if (!profileId) {
+            return res.status(400).json({
+                success: false,
+                message: "User profile data is missing",
+            });
+        }
+
+        // Delete the profile and user
+        await Profile.findByIdAndDelete(profileId);
+        await User.findByIdAndDelete(userId);
+
+        return res.status(200).json({
+            success: true,
+            message: "User deleted successfully",
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete user",
+            error: error.message,
+        });
+    }
+};
+
+
+
+
+

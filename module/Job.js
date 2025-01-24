@@ -23,7 +23,10 @@ const jobSchema = new mongoose.Schema({
     location: {
         type: String
     }, // e.g., "Remote", "On-Site", "Hybrid"
-
+    lastChange: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+    },
     salaryRange: {
         min: Number,
         max: Number
@@ -54,6 +57,10 @@ const jobSchema = new mongoose.Schema({
         type: [String]
 
     },
+    applyLink: {
+        type: String,
+    },
+    
     tags: [String], // Tags for filtering/searching
     createdAt: {
         type: Date,

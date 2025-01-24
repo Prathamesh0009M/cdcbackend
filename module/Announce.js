@@ -1,6 +1,4 @@
 const mongoose = require("mongoose");
-
-
 const announcementSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -9,16 +7,25 @@ const announcementSchema = new mongoose.Schema({
     content: {
         type: String,
         required: true
-
+    },
+    Highlight: {
+        type: [String]
     },
     datePosted: {
         type: Date,
         default: Date.now
     },
+    
+
     priority: {
         type: Number,
-        default: 1  
+        default: 1
         // For ordering announcements; lower number means higher priority
+    },
+    lastChange: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required:true,
     },
     // can be array for multiple data store 
     attachments: {

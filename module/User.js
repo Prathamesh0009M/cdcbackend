@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
 
     YearAndBranch: {
         type: String,
-        required: true,
+        // required: true,
         trim: true,
     },
     collegeId: {
@@ -36,6 +36,9 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ["CDC Coordinator", "Staff"],
         required: true,
+    },
+    batch: {
+        type: String,
     },
     additionaldetail: {
         type: mongoose.Schema.Types.ObjectId,

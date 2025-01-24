@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+// google form link for registration 
 
 const eventSchema = new mongoose.Schema({
     name: {
@@ -11,8 +11,11 @@ const eventSchema = new mongoose.Schema({
         required: true
     },
     date: {
-        type: Date,
+        type: String,
         required: true
+    },
+    img: {
+        type: String,
     },
     time: {
         type: String
@@ -24,7 +27,7 @@ const eventSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['Workshop', 'Webinar', 'Interview', 'Networking', 'Other']
+        // enum: ['Workshop', 'Webinar', 'Interview', 'Networking', 'Other']
     }, // Event type
     registrationRequired: {
         type: Boolean,
@@ -37,8 +40,12 @@ const eventSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     }, // Highlight this event
+    lastChange: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+    },
     tags: [String], // Tags for easy searching or filtering
-    
+
     createdAt: {
         type: Date,
         default: Date.now,

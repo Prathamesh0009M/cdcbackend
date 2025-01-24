@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const successStorySchema = new mongoose.Schema({
-
     name: {
         type: String,
         required: true
@@ -16,21 +15,30 @@ const successStorySchema = new mongoose.Schema({
     company: {
         type: String
     }, // Name of the company/organization
+    package: {
+        type: String
+    }, // Name of the company/organization
     position: {
         type: String
     }, // Job title or internship role
+    lastChange: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+    },
     achievement: {
-        type: String, required: true
+        type: String,
+        // required: true
     }, // Key achievement description
     story: {
-        type: String, required: true
+        type: String,
+        // required: true
     }, // Detailed success story narrative
     photo:
     {
         type: String
     }, // URL or path to the person's photo 
     tags: [String], // Tags for filtering (e.g., "Internship", "Placement", "Tech")
-    
+
     datePosted: {
         type: Date,
         default: Date.now
