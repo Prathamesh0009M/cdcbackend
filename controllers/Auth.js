@@ -1,5 +1,5 @@
 const User = require("../module/User");
-const OTP = require("../module/OTP");
+const OTP = require("../module/Otp"); // Note the lowercase 't'
 const otpgenrater = require("otp-generator");
 const Profile = require("../module/Profile")
 const bcrypt = require('bcrypt');
